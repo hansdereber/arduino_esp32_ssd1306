@@ -1,16 +1,13 @@
-// Include the correct display library
-// For a connection via I2C using Wire include
-#include <Wire.h>  // Only needed for Arduino 1.6.5 and earlier
-#include "SSD1306.h" // alias for `#include "SSD1306Wire.h"`
+#include <Wire.h>
+#include "SSD1306.h"
+#include <WiFiClientSecure.h>
 
-// Initialize the OLED display using Wire library
 SSD1306  display(0x3c, 5, 4);
 
-#define DEMO_DURATION 3000
-typedef void (*Demo)(void);
+const char* ssid     = "affenstunk";
+const char* password = "Schluss3ndlich";
 
-int demoMode = 0;
-int counter = 1;
+const char* host = "api.kraken.com";
 
 void setup() {
   Serial.begin(115200);
@@ -22,6 +19,25 @@ void setup() {
 
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_10);
+
+    delay(10);
+      Serial.println();
+    Serial.println();
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+
+    WiFi.begin(ssid, password);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+
 
 }
 
@@ -43,6 +59,54 @@ void drawTextAlignmentDemo() {
 }
 
 void loop() {
+  delay(5000);
+
+    // Use WiFiClient class to create TCP connections
+    WiFiClient client;
+    const int httpPort = 80;
+    if (!client.connect(host, httpPort)) {
+        Serial.println("connection failed");
+        return;
+    }
+
+    // We now create a URI for the request
+    String url = "/0/public/Ticker";
+    url += "?pair=xbteur";
+
+    Serial.print("Requesting URL: ");
+    Serial.println(url);
+
+    // This will send the request to the server
+
+    // Make a HTTP request:
+    client.println("GET https://api.kraken.com/0/public/Ticker?pair=xbteur HTTP/1.0");
+    client.println("Host: api.kraken.com");
+    client.println("Connection: close");
+    client.println();
+
+
+
+
+    
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+        if (millis() - timeout > 5000) {
+            Serial.println(">>> Client Timeout !");
+            client.stop();
+            return;
+        }
+    }
+
+    // Read all the lines of the reply from server and print them to Serial
+    while(client.available()) {
+        String line = client.readStringUntil('\r');
+        Serial.print(line);
+    }
+
+    Serial.println();
+    Serial.println("closing connection");
+
+
   // clear the display
   display.clear();
 
